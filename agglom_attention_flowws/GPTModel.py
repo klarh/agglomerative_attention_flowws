@@ -35,6 +35,18 @@ from keras_transformer.extras import ReusableEmbedding, TiedOutputEmbedding
 from keras_transformer.position import TransformerCoordinateEmbedding
 from keras_transformer.transformer import TransformerACT, TransformerBlock
 
+def maybe_setup_tensorflow():
+    if keras.backend.backend() != 'tensorflow':
+        return
+
+    import tensorflow as tf
+
+    tf_config = tf.ConfigProto()
+    tf_config.gpu_options.allow_growth = True
+    tf_config.graph_options.optimizer_options.global_jit_level = tf.OptimizerOptions.ON_1
+    session = tf.Session(config=tf_config)
+    K.set_session(session)
+
 def universal_transformer_gpt_model(
         max_seq_length: int, vocabulary_size: int,
         word_embedding_size: int, transformer_depth: int,
@@ -134,6 +146,8 @@ class GPTModel(flowws.Stage):
     def run(self, scope, storage):
         vocabulary_size = scope['vocabulary_size']
         sequence_length = scope['sequence_length']
+
+        maybe_setup_tensorflow()
 
         model = universal_transformer_gpt_model(
             sequence_length,

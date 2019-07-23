@@ -122,6 +122,8 @@ class WikiText2(flowws.Stage):
     ARGS = [
         Arg('sequence_length', '-l', int, 64,
             help='Maximum sequence length of the network'),
+        Arg('batch_size', '-b', int, 32,
+            help='Batch size for training')
         ]
 
     def run(self, scope, storage):
@@ -141,3 +143,4 @@ class WikiText2(flowws.Stage):
         scope['test_data'] = x_y_for_dataset(wikitext.TEST_SET_NAME)
         scope['loss'] = 'sparse_categorical_crossentropy'
         scope['sequence_length'] = sequence_length
+        scope['batch_size'] = self.arguments['batch_size']

@@ -74,8 +74,6 @@ class Run(flowws.Stage):
             help='Optimizer name to use'),
         Arg('optimizer_kwargs', None, [(str, eval)], [],
             help='Arguments for optimizer'),
-        Arg('batch_size', '-b', int, 32,
-            help='Batch size for training')
     ]
 
     def run(self, scope, storage):
@@ -109,17 +107,21 @@ class Run(flowws.Stage):
         )
 
         args = []
-        kwargs = dict(
-            batch_size=self.arguments['batch_size'],
+        kwargs = dict(scope.get('model_train_kwargs', {}))
+        kwargs.update(dict(
             callbacks=callbacks,
             epochs=self.arguments['epochs'],
             verbose=False,
-        )
+        ))
+
+        use_fit_generator = False
 
         if 'training_data' in scope:
             args.extend(scope['training_data'])
+            kwargs['batch_size'] = scope.get('batch_size', 32)
         elif 'training_data_generator' in scope:
             args.append(scope['training_data_generator'])
+            use_fit_generator = True
         else:
             raise NotImplementedError()
 
@@ -130,7 +132,10 @@ class Run(flowws.Stage):
         elif self.arguments['validation_split'] > 0:
             kwargs['validation_split'] = self.arguments['validation_split']
 
-        history = model.fit(*args, **kwargs)
+        if use_fit_generator:
+            history = model.fit_generator(*args, **kwargs)
+        else:
+            history = model.fit(*args, **kwargs)
 
         metadata = scope.get('metadata', {})
 

@@ -141,7 +141,7 @@ class Run(flowws.Stage):
             with gtar.GTAR(f.name, 'a') as traj:
                 for name, vals in history.history.items():
                     rec = gtar.Record(
-                        '', name, '0', gtar.Behavior.Varying,
+                        '', name, '0', gtar.Behavior.Continuous,
                         gtar.Format.Float32, gtar.Resolution.Uniform)
                     traj.writeRecord(rec, vals)
 

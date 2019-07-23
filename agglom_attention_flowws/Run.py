@@ -82,7 +82,7 @@ class Run(flowws.Stage):
         if self.arguments.get('early_stopping', None):
             patience = self.arguments['early_stopping']
             callback = keras.callbacks.EarlyStopping(
-                'val_loss', patience, restore_best_weights=True)
+                patience=patience, restore_best_weights=True, verbose=True)
             callbacks.append(callback)
 
         optimizer_kwargs = dict(self.arguments.get('optimizer_kwargs', {}))

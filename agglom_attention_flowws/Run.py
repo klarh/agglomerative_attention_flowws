@@ -21,6 +21,18 @@ def intfloat(x):
     """int . float (for convenience in command-line specification)"""
     return int(float(x))
 
+def maybe_setup_tensorflow():
+    if keras.backend.backend() != 'tensorflow':
+        return
+
+    import tensorflow as tf
+
+    tf_config = tf.ConfigProto()
+    tf_config.gpu_options.allow_growth = True
+    tf_config.graph_options.optimizer_options.global_jit_level = tf.OptimizerOptions.ON_1
+    session = tf.Session(config=tf_config)
+    K.set_session(session)
+
 @metric
 def perplexity(y_true, y_pred):
     """
@@ -67,6 +79,7 @@ class Run(flowws.Stage):
     ]
 
     def run(self, scope, storage):
+        maybe_setup_tensorflow()
         model = scope['model']
 
         metrics = []

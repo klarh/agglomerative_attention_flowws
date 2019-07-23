@@ -127,6 +127,8 @@ class GPTModel(flowws.Stage):
             help='Width of causal convolutions to use'),
         Arg('num_heads', '-n', int, 8,
             help='Number of attention/agglomerative heads to use'),
+        Arg('print_summary', '-p', bool, False,
+            help='Print a summary of the model before continuing'),
     ]
 
     def run(self, scope, storage):
@@ -143,5 +145,8 @@ class GPTModel(flowws.Stage):
             use_convolutions=self.arguments['use_convolutions'],
             use_coordinate_embeddings=(not self.arguments['use_convolutions']),
             convolution_width=self.arguments['convolution_width'])
+
+        if self.arguments['print_summary']:
+            model.summary()
 
         scope['model'] = model

@@ -1,0 +1,2 @@
+include setup.py LICENSE
+recursive-include agglom_attention_flowws *.py wikitext-2-v1.zip LICENSE

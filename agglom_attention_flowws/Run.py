@@ -1,5 +1,7 @@
+import contextlib
 import json
 import random
+import os
 import re
 import time
 
@@ -132,7 +134,7 @@ class Run(flowws.Stage):
         maybe_setup_tensorflow()
         maybe_set_seed(self.arguments['seed'])
 
-        model = scope['model']
+        model = self.get_model(scope, storage)
 
         metrics = []
 
@@ -169,8 +171,12 @@ class Run(flowws.Stage):
         kwargs.update(dict(
             callbacks=callbacks,
             epochs=self.arguments['epochs'],
+            initial_epoch=(scope['last_epoch'] + 1),
             verbose=False,
         ))
+
+        if scope.get('last_epoch', None):
+            kwargs['epochs'] -= scope['last_epoch']
 
         use_fit_generator = False
 
@@ -196,16 +202,43 @@ class Run(flowws.Stage):
             history = model.fit(*args, **kwargs)
 
         metadata = scope.get('metadata', {})
+        filename = scope.get('filename', 'dump.zip')
 
-        with storage.open('dump.zip', 'wb', on_filesystem=True) as f:
-            with keras_gtar.Trajectory(f.name, 'w') as traj:
+        with storage.open(filename, 'ab', on_filesystem=True) as f:
+            gtar_mode = 'a' if os.stat(f.name).st_size > 0 else 'w'
+            with keras_gtar.Trajectory(f.name, gtar_mode) as traj:
                 traj.save(model, str(history.epoch[-1]))
 
             with gtar.GTAR(f.name, 'a') as traj:
                 for name, vals in history.history.items():
                     rec = gtar.Record(
-                        '', name, '0', gtar.Behavior.Continuous,
+                        '', name, str(scope['last_epoch']), gtar.Behavior.Continuous,
                         gtar.Format.Float32, gtar.Resolution.Uniform)
                     traj.writeRecord(rec, vals)
 
                 traj.writeStr('metadata.json', json.dumps(metadata))
+
+    def get_model(self, scope, storage):
+        model = scope['model']
+
+        filename = scope.get('filename', 'dump.zip')
+
+        try:
+            with contextlib.ExitStack() as stack:
+                f = stack.enter_context(
+                    storage.open(filename, 'rb', on_filesystem=True))
+                traj = stack.enter_context(
+                    keras_gtar.Trajectory(f.name))
+
+                last_frame = int(traj.frames[-1])
+
+                new_model = traj.load()
+                # reuse the original model object to make sure the
+                # architecture did not change
+                model.set_weights(new_model.get_weights())
+
+                scope['last_epoch'] = last_frame
+        except FileNotFoundError:
+            scope['last_epoch'] = 0
+
+        return model

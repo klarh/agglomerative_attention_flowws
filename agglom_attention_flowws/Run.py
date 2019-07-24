@@ -1,5 +1,6 @@
 import json
 import random
+import re
 import time
 
 import flowws
@@ -67,6 +68,42 @@ class TimingCallback(keras.callbacks.Callback):
     def on_epoch_end(self, epoch, logs={}):
         logs['epoch_time'] = time.time() - self.starttime
 
+class TimeLimitCallback(keras.callbacks.Callback):
+    """End training after a certain amount of time has passed"""
+    def __init__(self, limit):
+        self.time_limit = self.parse_time(limit)
+
+    def on_train_begin(self, *args, **kwargs):
+        self.start_time = time.time()
+
+    def on_epoch_end(self, *args, **kwargs):
+        if time.time() - self.start_time > self.time_limit:
+            self.model.stop_training = True
+
+    @staticmethod
+    def parse_time(limit):
+        """Parse a human-readable time, like 8h3m, into seconds"""
+        pattern = re.compile(r'(?P<number>\d+(\.\d+)?)(?P<unit>[smhd])(?P<rest>.*)')
+        # convert units to seconds
+        conversion = dict(s=1, m=60, h=60*60, d=60*60*24)
+
+        remainder = limit
+        result = 0
+
+        while remainder:
+            match = pattern.match(remainder)
+
+            if match is None:
+                raise ValueError('Can\'t parse time fragment "{}"'.format(remainder))
+
+            unit = match.group('unit')
+            number = float(match.group('number'))
+            result += number*conversion[unit]
+
+            remainder = match.group('rest')
+
+        return int(result)
+
 @flowws.add_stage_arguments
 class Run(flowws.Stage):
     """Train and save a model"""
@@ -87,6 +124,8 @@ class Run(flowws.Stage):
             help='Arguments for optimizer'),
         Arg('seed', '-s', int, None,
             help='Seed to use'),
+        Arg('time_limit', '-t', str, None,
+            help='Time limit to use (e.g. 8h)'),
     ]
 
     def run(self, scope, storage):
@@ -109,6 +148,10 @@ class Run(flowws.Stage):
             patience = self.arguments['early_stopping']
             callback = keras.callbacks.EarlyStopping(
                 patience=patience, restore_best_weights=True, verbose=True)
+            callbacks.append(callback)
+
+        if self.arguments.get('time_limit', None):
+            callback = TimeLimitCallback(self.arguments['time_limit'])
             callbacks.append(callback)
 
         optimizer_kwargs = dict(self.arguments.get('optimizer_kwargs', {}))

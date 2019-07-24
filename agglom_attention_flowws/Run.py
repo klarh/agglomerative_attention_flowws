@@ -220,23 +220,24 @@ class Run(flowws.Stage):
 
         metadata = scope.get('metadata', {})
         filename = scope.get('filename', 'dump.zip')
+        final_epoch = history.epoch[-1]
 
         with storage.open(filename, 'ab', on_filesystem=True) as f:
             gtar_mode = 'a' if os.stat(f.name).st_size > 0 else 'w'
             with keras_gtar.Trajectory(f.name, gtar_mode) as traj:
-                traj.save(model, str(history.epoch[-1]))
+                traj.save(model, str(final_epoch))
 
             with gtar.GTAR(f.name, 'a') as traj:
                 for name, vals in history.history.items():
                     rec = gtar.Record(
-                        '', name, str(initial_epoch), gtar.Behavior.Continuous,
+                        '', name, str(final_epoch), gtar.Behavior.Continuous,
                         gtar.Format.Float32, gtar.Resolution.Uniform)
                     traj.writeRecord(rec, vals)
 
                 for name, vals in test_evals.items():
                     name = 'test_{}'.format(name)
                     rec = gtar.Record(
-                        '', name, str(initial_epoch), gtar.Behavior.Continuous,
+                        '', name, str(final_epoch), gtar.Behavior.Discrete,
                         gtar.Format.Float32, gtar.Resolution.Uniform)
                     traj.writeRecord(rec, vals)
 

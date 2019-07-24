@@ -1,4 +1,5 @@
 import json
+import random
 import time
 
 import flowws
@@ -32,6 +33,16 @@ def maybe_setup_tensorflow():
     tf_config.graph_options.optimizer_options.global_jit_level = tf.OptimizerOptions.ON_1
     session = tf.Session(config=tf_config)
     K.set_session(session)
+
+def maybe_set_seed(seed):
+    if seed is None:
+        return
+
+    random.seed(seed)
+    np.random.seed(seed + 1)
+    if keras.backend.backend() == 'tensorflow':
+        import tensorflow as tf
+        tf.set_random_seed(seed + 2)
 
 @metric
 def perplexity(y_true, y_pred):
@@ -74,10 +85,14 @@ class Run(flowws.Stage):
             help='Optimizer name to use'),
         Arg('optimizer_kwargs', None, [(str, eval)], [],
             help='Arguments for optimizer'),
+        Arg('seed', '-s', int, None,
+            help='Seed to use'),
     ]
 
     def run(self, scope, storage):
         maybe_setup_tensorflow()
+        maybe_set_seed(self.arguments['seed'])
+
         model = scope['model']
 
         metrics = []

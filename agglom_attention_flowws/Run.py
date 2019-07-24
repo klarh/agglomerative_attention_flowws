@@ -198,10 +198,13 @@ class Run(flowws.Stage):
         elif self.arguments['validation_split'] > 0:
             kwargs['validation_split'] = self.arguments['validation_split']
 
-        if use_fit_generator:
-            history = model.fit_generator(*args, **kwargs)
-        else:
-            history = model.fit(*args, **kwargs)
+        try:
+            if use_fit_generator:
+                history = model.fit_generator(*args, **kwargs)
+            else:
+                history = model.fit(*args, **kwargs)
+        except KeyboardInterrupt:
+            history = model.history
 
         test_evals = {}
         if 'test_data' in scope:

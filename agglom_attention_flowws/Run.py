@@ -177,6 +177,8 @@ class Run(flowws.Stage):
 
         if scope.get('last_epoch', None):
             kwargs['epochs'] -= scope['last_epoch']
+            if kwargs['epochs'] <= 0:
+                return
 
         use_fit_generator = False
 

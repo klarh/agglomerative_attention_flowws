@@ -132,7 +132,7 @@ class Run(flowws.Stage):
 
     def run(self, scope, storage):
         maybe_setup_tensorflow()
-        maybe_set_seed(self.arguments['seed'])
+        maybe_set_seed(self.arguments.get('seed', None))
 
         model = self.get_model(scope, storage)
 

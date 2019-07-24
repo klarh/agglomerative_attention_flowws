@@ -94,5 +94,7 @@ class Text8(flowws.Stage):
         train_kwargs['validation_steps'] = validation_steps
         scope['training_data_generator'] = train_data
         scope['validation_data_generator'] = val_data
+        scope['test_data_generator'] = test_data
+        scope['test_steps'] = test_steps
         scope['loss'] = 'sparse_categorical_crossentropy'
         scope['sequence_length'] = sequence_length

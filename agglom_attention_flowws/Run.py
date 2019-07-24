@@ -136,6 +136,8 @@ class Run(flowws.Stage):
 
         model = self.get_model(scope, storage)
 
+        initial_epoch = scope['last_epoch'] + 1
+
         metrics = []
 
         for m in self.arguments['metrics']:
@@ -171,14 +173,12 @@ class Run(flowws.Stage):
         kwargs.update(dict(
             callbacks=callbacks,
             epochs=self.arguments['epochs'],
-            initial_epoch=(scope['last_epoch'] + 1),
+            initial_epoch=initial_epoch,
             verbose=False,
         ))
 
-        if scope.get('last_epoch', None):
-            kwargs['epochs'] -= scope['last_epoch']
-            if kwargs['epochs'] <= 0:
-                return
+        if kwargs['epochs'] <= initial_epoch:
+            return
 
         use_fit_generator = False
 
@@ -203,6 +203,18 @@ class Run(flowws.Stage):
         else:
             history = model.fit(*args, **kwargs)
 
+        test_evals = {}
+        if 'test_data' in scope:
+            values = model.evaluate(
+                *scope['test_data'],
+                verbose=False, batch_size=kwargs['batch_size'])
+            test_evals.update(dict(zip(model.metrics_names, values)))
+        elif 'test_data_generator' in scope:
+            values = model.evaluate_generator(
+                scope['test_data_generator'],
+                verbose=False, steps=scope['test_steps'])
+            test_evals.update(dict(zip(model.metrics_names, values)))
+
         metadata = scope.get('metadata', {})
         filename = scope.get('filename', 'dump.zip')
 
@@ -214,7 +226,14 @@ class Run(flowws.Stage):
             with gtar.GTAR(f.name, 'a') as traj:
                 for name, vals in history.history.items():
                     rec = gtar.Record(
-                        '', name, str(scope['last_epoch']), gtar.Behavior.Continuous,
+                        '', name, str(initial_epoch), gtar.Behavior.Continuous,
+                        gtar.Format.Float32, gtar.Resolution.Uniform)
+                    traj.writeRecord(rec, vals)
+
+                for name, vals in test_evals.items():
+                    name = 'test_{}'.format(name)
+                    rec = gtar.Record(
+                        '', name, str(initial_epoch), gtar.Behavior.Continuous,
                         gtar.Format.Float32, gtar.Resolution.Uniform)
                     traj.writeRecord(rec, vals)
 
@@ -241,6 +260,6 @@ class Run(flowws.Stage):
 
                 scope['last_epoch'] = last_frame
         except FileNotFoundError:
-            scope['last_epoch'] = 0
+            scope['last_epoch'] = -1
 
         return model

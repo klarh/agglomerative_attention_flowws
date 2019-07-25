@@ -77,10 +77,12 @@ class TimeLimitCallback(keras.callbacks.Callback):
 
     def on_train_begin(self, *args, **kwargs):
         self.start_time = time.time()
+        self.triggered = False
 
     def on_epoch_end(self, *args, **kwargs):
         if time.time() - self.start_time > self.time_limit:
             self.model.stop_training = True
+            self.triggered = True
 
     @staticmethod
     def parse_time(limit):
@@ -138,6 +140,9 @@ class Run(flowws.Stage):
 
         initial_epoch = scope['last_epoch'] + 1
 
+        if self.arguments['epochs'] <= initial_epoch:
+            return
+
         metrics = []
 
         for m in self.arguments['metrics']:
@@ -148,15 +153,17 @@ class Run(flowws.Stage):
             keras_tqdm.TQDMCallback(show_inner=False),
         ]
 
+        early_stopping_callback = None
         if self.arguments.get('early_stopping', None):
             patience = self.arguments['early_stopping']
-            callback = keras.callbacks.EarlyStopping(
+            early_stopping_callback = keras.callbacks.EarlyStopping(
                 patience=patience, restore_best_weights=True, verbose=True)
-            callbacks.append(callback)
+            callbacks.append(early_stopping_callback)
 
+        time_callback = None
         if self.arguments.get('time_limit', None):
-            callback = TimeLimitCallback(self.arguments['time_limit'])
-            callbacks.append(callback)
+            time_callback = TimeLimitCallback(self.arguments['time_limit'])
+            callbacks.append(time_callback)
 
         optimizer_kwargs = dict(self.arguments.get('optimizer_kwargs', {}))
         optimizer_cls = getattr(keras.optimizers, self.arguments['optimizer'])
@@ -176,9 +183,6 @@ class Run(flowws.Stage):
             initial_epoch=initial_epoch,
             verbose=False,
         ))
-
-        if kwargs['epochs'] <= initial_epoch:
-            return
 
         use_fit_generator = False
 
@@ -222,6 +226,14 @@ class Run(flowws.Stage):
         filename = scope.get('filename', 'dump.zip')
         final_epoch = history.epoch[-1]
 
+        end_reason = None
+        if final_epoch + 1 >= self.arguments['epochs']:
+            end_reason = 'completed'
+        elif time_callback is not None and time_callback.triggered:
+            pass # we should resume training later
+        elif early_stopping_callback is not None and early_stopping_callback.stopped_epoch:
+            end_reason = 'early_stopping'
+
         with storage.open(filename, 'ab', on_filesystem=True) as f:
             gtar_mode = 'a' if os.stat(f.name).st_size > 0 else 'w'
             with keras_gtar.Trajectory(f.name, gtar_mode) as traj:
@@ -243,6 +255,9 @@ class Run(flowws.Stage):
 
                 traj.writeStr('metadata.json', json.dumps(metadata))
 
+                if end_reason is not None:
+                    traj.writeStr('end_reason.txt', end_reason)
+
     def get_model(self, scope, storage):
         model = scope['model']
 
@@ -252,6 +267,12 @@ class Run(flowws.Stage):
             with contextlib.ExitStack() as stack:
                 f = stack.enter_context(
                     storage.open(filename, 'rb', on_filesystem=True))
+
+                with gtar.GTAR(f.name, 'r') as traj:
+                    if traj.readStr('end_reason.txt'):
+                        scope['last_epoch'] = self.arguments['epochs']
+                        return model
+
                 traj = stack.enter_context(
                     keras_gtar.Trajectory(f.name))
 

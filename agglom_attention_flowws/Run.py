@@ -175,7 +175,8 @@ class Run(flowws.Stage):
                 patience=self.arguments['reduce_lr'])
             callbacks.append(reduce_lr_callback)
 
-        optimizer_kwargs = dict(self.arguments.get('optimizer_kwargs', {}))
+        optimizer_kwargs = dict(scope.get('optimizer_kwargs', {}))
+        optimizer_kwargs.update(dict(self.arguments.get('optimizer_kwargs', {})))
         optimizer_cls = getattr(keras.optimizers, self.arguments['optimizer'])
         optimizer = optimizer_cls(**optimizer_kwargs)
 
@@ -273,6 +274,8 @@ class Run(flowws.Stage):
 
         filename = scope.get('filename', 'dump.zip')
 
+        optimizer_kwargs = scope.setdefault('optimizer_kwargs', {})
+
         try:
             with contextlib.ExitStack() as stack:
                 f = stack.enter_context(
@@ -282,6 +285,9 @@ class Run(flowws.Stage):
                     if traj.readStr('end_reason.txt'):
                         scope['last_epoch'] = self.arguments['epochs']
                         return model
+
+                    for (_, lr_array) in traj.recordsNamed('lr'):
+                        optimizer_kwargs['lr'] = lr_array[-1]
 
                 traj = stack.enter_context(
                     keras_gtar.Trajectory(f.name))

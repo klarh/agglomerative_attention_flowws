@@ -130,6 +130,10 @@ class Run(flowws.Stage):
             help='Seed to use'),
         Arg('time_limit', '-t', str, None,
             help='Time limit to use (e.g. 8h)'),
+        Arg('reduce_lr', None, int, None,
+            help='Period over which to reduce learning rate'),
+        Arg('reduce_lr_factor', None, float, .75,
+            help='Factor by which to reduce learning rate'),
     ]
 
     def run(self, scope, storage):
@@ -164,6 +168,12 @@ class Run(flowws.Stage):
         if self.arguments.get('time_limit', None):
             time_callback = TimeLimitCallback(self.arguments['time_limit'])
             callbacks.append(time_callback)
+
+        if self.arguments.get('reduce_lr', None):
+            reduce_lr_callback = keras.callbacks.ReduceLROnPlateau(
+                factor=self.arguments['reduce_lr_factor'],
+                patience=self.arguments['reduce_lr'])
+            callbacks.append(reduce_lr_callback)
 
         optimizer_kwargs = dict(self.arguments.get('optimizer_kwargs', {}))
         optimizer_cls = getattr(keras.optimizers, self.arguments['optimizer'])

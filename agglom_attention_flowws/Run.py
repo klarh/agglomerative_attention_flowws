@@ -157,9 +157,8 @@ class Run(flowws.Stage):
         for m in self.arguments['metrics']:
             metrics.append(METRIC_MAP.get(m, m))
 
-        callbacks = [
-            TimingCallback(),
-        ]
+        callbacks = list(scope.setdefault('callbacks', []))
+        callbacks.append(TimingCallback())
 
         early_stopping_callback = None
         if self.arguments.get('early_stopping', None):

@@ -139,6 +139,7 @@ class WikiText2(flowws.Stage):
             return _x, _y
 
         scope['training_data'] = x_y_for_dataset(wikitext.TRAINING_SET_NAME)
+        (scope['x_train'], scope['y_train']) = scope['training_data']
         scope['validation_data'] = x_y_for_dataset(wikitext.VALIDATION_SET_NAME)
         scope['test_data'] = x_y_for_dataset(wikitext.TEST_SET_NAME)
         scope['loss'] = 'sparse_categorical_crossentropy'

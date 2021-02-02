@@ -92,9 +92,11 @@ class Text8(flowws.Stage):
         train_kwargs = scope.setdefault('model_train_kwargs', {})
         train_kwargs['steps_per_epoch'] = steps_per_epoch
         train_kwargs['validation_steps'] = validation_steps
-        scope['training_data_generator'] = train_data
-        scope['validation_data_generator'] = val_data
-        scope['test_data_generator'] = test_data
+        scope['training_data_generator'] = scope['train_generator'] = train_data
+        scope['generator_train_steps'] = steps_per_epoch
+        scope['validation_data_generator'] = scope['validation_generator'] = val_data
+        scope['generator_val_steps'] = validation_steps
+        scope['test_data_generator'] = scope['test_generator'] = test_data
         scope['test_steps'] = test_steps
         scope['loss'] = 'sparse_categorical_crossentropy'
         scope['sequence_length'] = sequence_length

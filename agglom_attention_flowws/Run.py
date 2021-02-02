@@ -9,9 +9,8 @@ import flowws
 from flowws import Argument as Arg
 import gtar
 import numpy as np
-import keras
-import keras.backend as K
-import keras_tqdm
+from tensorflow import keras
+from tensorflow.keras import backend as K
 import keras_gtar
 
 METRIC_MAP = {}
@@ -31,11 +30,17 @@ def maybe_setup_tensorflow():
 
     import tensorflow as tf
 
-    tf_config = tf.ConfigProto()
-    tf_config.gpu_options.allow_growth = True
-    tf_config.graph_options.optimizer_options.global_jit_level = tf.OptimizerOptions.ON_1
-    session = tf.Session(config=tf_config)
-    K.set_session(session)
+    tf.config.optimizer.set_jit(True)
+    gpus = tf.config.experimental.list_physical_devices('GPU')
+    if gpus:
+        try:
+            # Currently, memory growth needs to be the same across GPUs
+            for gpu in gpus:
+                tf.config.experimental.set_memory_growth(gpu, True)
+            logical_gpus = tf.config.experimental.list_logical_devices('GPU')
+        except RuntimeError as e:
+            # Memory growth must be set before GPUs have been initialized
+            print(e)
 
 def maybe_set_seed(seed):
     if seed is None:
@@ -122,7 +127,7 @@ class Run(flowws.Stage):
         Arg('validation_split', None, float, .3,
             help='Fraction of training data to use as validation if no '
             'validation set is given'),
-        Arg('optimizer', None, str, 'adadelta',
+        Arg('optimizer', None, str, 'Adadelta',
             help='Optimizer name to use'),
         Arg('optimizer_kwargs', None, [(str, eval)], [],
             help='Arguments for optimizer'),
@@ -154,7 +159,6 @@ class Run(flowws.Stage):
 
         callbacks = [
             TimingCallback(),
-            keras_tqdm.TQDMCallback(show_inner=False),
         ]
 
         early_stopping_callback = None

@@ -31,7 +31,6 @@ setup(name='agglom_attention_flowws',
       extras_require={},
       install_requires=[
           'flowws',
-          'keras',
           'keras-gtar',
           'keras-transformer',
           'keras-tqdm',

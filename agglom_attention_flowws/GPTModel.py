@@ -25,12 +25,14 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE
 OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
 
+from typing import Type
+
 import flowws
 from flowws import Argument as Arg
 
 from tensorflow import keras
 from tensorflow.keras import backend as K
-from tensorflow.keras.layers import Input, Softmax, Embedding, Add, Lambda, Dense
+from tensorflow.keras.layers import Dense, Dropout, Input, Layer, Softmax, Embedding, Add, Lambda
 from keras_transformer.extras import ReusableEmbedding, TiedOutputEmbedding
 from keras_transformer.position import TransformerCoordinateEmbedding
 from keras_transformer.transformer import TransformerACT, TransformerBlock
@@ -46,7 +48,8 @@ def universal_transformer_gpt_model(
         use_convolutions: bool = False,
         use_coordinate_embeddings: bool = True,
         convolution_width: int = 0,
-        penalize_confidence: bool = False):
+        penalize_confidence: bool = False,
+        ):
     """
     A model which is similar to the one described by OpenAI in paper
     "Improving Language Understanding by Generative Pre-Training", except
@@ -80,7 +83,8 @@ def universal_transformer_gpt_model(
         residual_dropout=transformer_dropout,
         attention_dropout=transformer_dropout,
         use_masking=True, vanilla_wiring=False,
-        agglomerative_attention=agglomerative_attention)
+        agglomerative_attention=agglomerative_attention,
+        )
     transformer_act_layer = TransformerACT(name='adaptive_computation_time')
     output_softmax_layer = Softmax(name='word_predictions')
 
@@ -121,6 +125,7 @@ def vanilla_transformer_gpt_model(
         use_convolutions: bool = False,
         use_coordinate_embeddings: bool = True,
         convolution_width: int = 0,
+        dropout_cls: Type[Layer] = Dropout
         ):
     """
     A model which is almost identical to the one described by OpenAI in paper
@@ -165,7 +170,9 @@ def vanilla_transformer_gpt_model(
                 attention_dropout=transformer_dropout,
                 use_masking=True,
                 vanilla_wiring=True,
-                agglomerative_attention=agglomerative_attention)
+                agglomerative_attention=agglomerative_attention,
+                dropout_cls=dropout_cls,
+            )
             (next_step_input))
 
     word_predictions = output_softmax_layer(
@@ -207,6 +214,8 @@ class GPTModel(flowws.Stage):
         vocabulary_size = scope['vocabulary_size']
         sequence_length = scope['sequence_length']
 
+        kwargs = {}
+
         if self.arguments['use_adaptive_computation']:
             model = universal_transformer_gpt_model(
                 sequence_length,
@@ -217,8 +226,13 @@ class GPTModel(flowws.Stage):
                 agglomerative_attention=self.arguments['use_agglomeration'],
                 use_convolutions=self.arguments['use_convolutions'],
                 use_coordinate_embeddings=(not self.arguments['use_convolutions']),
-                convolution_width=self.arguments['convolution_width'])
+                convolution_width=self.arguments['convolution_width'],
+                **kwargs
+            )
         else:
+            if 'dropout_sequence_class' in scope:
+                kwargs['dropout_cls'] = scope['dropout_sequence_class']
+
             model = vanilla_transformer_gpt_model(
                 sequence_length,
                 vocabulary_size,
@@ -228,7 +242,9 @@ class GPTModel(flowws.Stage):
                 agglomerative_attention=self.arguments['use_agglomeration'],
                 use_convolutions=self.arguments['use_convolutions'],
                 use_coordinate_embeddings=(not self.arguments['use_convolutions']),
-                convolution_width=self.arguments['convolution_width'])
+                convolution_width=self.arguments['convolution_width'],
+                **kwargs
+            )
 
         if self.arguments['print_summary']:
             model.summary()

@@ -208,6 +208,8 @@ class GPTModel(flowws.Stage):
             help='Number of attention/agglomerative heads to use'),
         Arg('print_summary', '-p', bool, False,
             help='Print a summary of the model before continuing'),
+        Arg('dropout', None, float, .5,
+            help='Dropout to use in transformer layers'),
     ]
 
     def run(self, scope, storage):
@@ -227,6 +229,7 @@ class GPTModel(flowws.Stage):
                 use_convolutions=self.arguments['use_convolutions'],
                 use_coordinate_embeddings=(not self.arguments['use_convolutions']),
                 convolution_width=self.arguments['convolution_width'],
+                transformer_dropout=self.arguments['dropout'],
                 **kwargs
             )
         else:
@@ -243,6 +246,7 @@ class GPTModel(flowws.Stage):
                 use_convolutions=self.arguments['use_convolutions'],
                 use_coordinate_embeddings=(not self.arguments['use_convolutions']),
                 convolution_width=self.arguments['convolution_width'],
+                transformer_dropout=self.arguments['dropout'],
                 **kwargs
             )
 

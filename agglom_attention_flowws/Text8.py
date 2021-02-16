@@ -26,6 +26,8 @@ class Text8DataWrapper:
             self.compress_character_map[j] = i
 
         self.vocabulary_size = len(self.compressed_characters)
+        self.char_map = {i: chr(c) for (i, c) in enumerate(self.compressed_characters)}
+        self.inv_char_map = {chr(c): i for (i, c) in enumerate(self.compressed_characters)}
 
     def random_batch(self, batch_size, seq_len, use_fractions=(0, 1.)):
         N = len(self.text8_data)
@@ -46,6 +48,12 @@ class Text8DataWrapper:
             inputs = slices[:, :-1]
             outputs = slices[:, 1:, np.newaxis]
             yield (inputs, outputs)
+
+    def encode(self, text):
+        return np.array([self.inv_char_map[c] for c in text])
+
+    def decode(self, numbers):
+        return ''.join(self.char_map[x] for x in numbers)
 
 @flowws.add_stage_arguments
 class Text8(flowws.Stage):
@@ -100,3 +108,5 @@ class Text8(flowws.Stage):
         scope['test_steps'] = test_steps
         scope['loss'] = 'sparse_categorical_crossentropy'
         scope['sequence_length'] = sequence_length
+        scope['encoder'] = dataset.encode
+        scope['decoder'] = dataset.decode

@@ -145,3 +145,5 @@ class WikiText2(flowws.Stage):
         scope['loss'] = 'sparse_categorical_crossentropy'
         scope['sequence_length'] = sequence_length
         scope['batch_size'] = self.arguments['batch_size']
+        scope['encoder'] = lambda x: [n for (n, token) in encoder(x)]
+        scope['decoder'] = lambda x: encoder.decode(x)

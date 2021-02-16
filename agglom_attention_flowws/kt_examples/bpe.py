@@ -177,6 +177,13 @@ class BPEEncoder:
             token_str = str(token)
             yield (token_to_id.get(token_str, ID_FOR_UNKNOWN_TOKEN), token)
 
+    def decode(self, tokens: Iterable[int]) -> str:
+        result = []
+        for token in tokens:
+            string = self.vocabulary.id_to_token.get(token, TOKEN_FOR_UNKNOWN)
+            result.append(string)
+        return ''.join(result)
+
     def vocabulary_size(self):
         return len(self.vocabulary.token_to_id)
 
